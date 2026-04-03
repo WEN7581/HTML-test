@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuickPing | Web Latency Monitor</title>
+    <style>
+        :root {
+            --bg-body: #0f172a;
+            --bg-card: #1e293b;
+            --bg-input: #334155;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --border: #334155;
+            --radius: 8px;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        header {
+            background-color: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-weight: 700;
+            font-size: 1.25rem;
+            letter-spacing: -0.025em;
+        }
+
+        .brand-icon {
+            width: 24px;
+            height: 24px;
+            background: var(--accent);
+            border-radius: 50%;
+            position: relative;
+        }
+
+        .brand-icon::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 10px;
+            height: 10px;
+            background: white;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        button {
+            cursor: pointer;
+            border: none;
+            border-radius: var(--radius);
+            padding: 0.5rem 1rem;
+            font-weight: 600;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background-color: var(--accent);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--accent-hover);
+        }
+
+        .btn-danger {
+            background-color: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+        }
+
+        .btn-danger:hover {
+            background-color: rgba(239, 68, 68, 0.2);
+        }
+
+        .btn-icon {
+            padding: 0.5rem;
+            background: transparent;
+            color: var(--text-muted);
+        }
+
+        .btn-icon:hover {
+            color: var(--text-main);
+            background: rgba(255,255,255,0.05);
+        }
+
+        input[type="text"] {
+            background-color: var(--bg-input);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 0.5rem 1rem;
+            border-radius: var(--radius);
+            outline: none;
+            width: 250px;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--accent);
+        }
+
+        main {
+            flex: 1;
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .input-section {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            background: var(--bg-card);
+            padding: 1.5rem;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            align-items: center;
+        }
+
+        .presets {
+            display: flex;
+            gap: 0.5rem;
+            margin-left: auto;
+        }
+
+        .chip {
+            background: var(--bg-input);
+            color: var(--text-muted);
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .chip:hover {
+            border-color: var(--accent);
+            color: var(--text-main);
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .ping-card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            position: relative;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .ping-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+            border-color: var(--accent);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .target-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            overflow: hidden;
+        }
+
+        .target-name {
+            font-weight: 600;
+            font-size: 1.1rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .target-url {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .status-badge {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            background: var(--bg-input);
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-badge.active { background: rgba(16, 185, 129, 0.2); color: var(--success); }
+        .status-badge.error { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+        .status-badge.pending { background: rgba(59, 130, 246, 0.2); color: var(--accent); }
+
+        .metric-display {
+            display: flex;
+            align-items: baseline;
+            gap: 0.5rem;
+        }
+
+        .latency-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            color: var(--text-main);
+        }
+
+        .latency-unit {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+
+        .chart-container {
+            height: 60px;
+            width: 100%;
+            position: relative;
+            background: rgba(0,0,0,0.2);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .card-actions {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .ping-card:hover .card-actions {
+            opacity: 1;
+        }
+
+        #toast-container {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            z-index: 1000;
+        }
+
+        .toast {
+            background: var(--bg-card);
+            border-left: 4px solid var(--accent);
+            padding: 1rem 1.5rem;
+            border-radius: var(--radius);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            color: var(--text-main);
+            font-size: 0.875rem;
+            animation: slideIn 0.3s ease-out;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-width: 250px;
+        }
+
+        .toast.error { border-color: var(--danger); }
+        .toast.success { border-color: var(--success); }
+
+        @keyframes pulse {
+            0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(2.5); opacity: 0; }
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        @keyframes fadeOut {
+            to { opacity: 0; transform: translateY(10px); }
+        }
+
+        .empty-state {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-muted);
+            border: 2px dashed var(--border);
+            border-radius: var(--radius);
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            border-top: 1px solid var(--border);
+            margin-top: auto;
+        }
+
+        @media (max-width: 768px) {
+            .input-section {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .presets {
+                margin-left: 0;
+                justify-content: center;
+                flex-wrap: wrap;
+            }
+            input[type="text"] {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="brand">
+            <div class="brand-icon"></div>
+            QuickPing
+        </div>
+        <div class="controls">
+            <button id="global-toggle" class="btn-primary">
+                <span id="toggle-icon">▶</span> <span id="toggle-text">Start Monitoring</span>
+            </button>
+        </div>
+    </header>
+    <main>
+        <section class="input-section">
+            <input type="text" id="url-input" placeholder="Enter URL (e.g., https://api.github.com)" autocomplete="off">
+            <button id="add-btn" class="btn-primary">Add Target</button>
+            <div class="presets">
+                <span class="chip" onclick="app.addPreset('https://www.google.com')">Google</span>
+                <span class="chip" onclick="app.addPreset('https://www.cloudflare.com')">Cloudflare</span>
+                <span class="chip" onclick="app.addPreset('https://www.amazon.com')">Amazon</span>
+                <span class="chip" onclick="app.addPreset('https://api.github.com')">GitHub API</span>
+            </div>
+        </section>
+        <section id="dashboard" class="dashboard-grid">
+            <!-- Cards will be injected here -->
+            <div class="empty-state">
+                <h3>No Targets Added</h3>
+                <p>Add a URL above or click a preset to start monitoring latency.</p>
+            </div>
+        </section>
+    </main>
+    <footer>
+        QuickPing uses HTTP Request timing (Fetch API) to estimate latency. <br>
+        Note: This is not ICMP. Results depend on browser CORS policies and server response times.
+    </footer>
+    <div id="toast-container"></div>
+    <script>
+        class QuickPingApp {
+            constructor() {
+                this.targets = [];
+                this.isMonitoring = false;
+                this.intervalId = null;
+                this.pingInterval = 2000; 
+                this.dashboard = document.getElementById('dashboard');
+                this.urlInput = document.getElementById('url-input');
+                this.addBtn = document.getElementById('add-btn');
+                this.globalToggle = document.getElementById('global-toggle');
+                this.toggleText = document.getElementById('toggle-text');
+                this.toggleIcon = document.getElementById('toggle-icon');
+                this.toastContainer = document.getElementById('toast-container');
+                this.addBtn.addEventListener('click', () => this.addTargetFromInput());
+                this.urlInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') this.addTargetFromInput();
+                });
+                this.globalToggle.addEventListener('click', () => this.toggleMonitoring());
+            }
+            addTarget(url) {
+                if (!url) return;
+                if (!/^https?:\/\//i.test(url)) {
+                    url = 'https://' + url;
+                }
+                if (this.targets.some(t => t.url === url)) {
+                    this.showToast('Target already exists', 'error');
+                    return;
+                }
+                const id = Date.now().toString(36) + Math.random().toString(36).substr(2);
+                const target = {
+                    id,
+                    url,
+                    name: new URL(url).hostname,
+                    history: new Array(20).fill(null), // For chart
+                    currentLatency: null,
+                    status: 'idle' // idle, pending, success, error
+                };
+
+                this.targets.push(target);
+                this.renderDashboard();
+                this.showToast(`Added ${target.name}`, 'success');
+                
+                // If monitoring is active, ping immediately
+                if (this.isMonitoring) {
+                    this.pingTarget(target);
+                }
+            }
+
+            addTargetFromInput() {
+                const val = this.urlInput.value.trim();
+                if (val) {
+                    this.addTarget(val);
+                    this.urlInput.value = '';
+                } else {
+                    this.showToast('Please enter a valid URL', 'error');
+                }
+            }
+
+            addPreset(url) {
+                this.addTarget(url);
+            }
+
+            removeTarget(id) {
+                this.targets = this.targets.filter(t => t.id !== id);
+                this.renderDashboard();
+                if (this.targets.length === 0) {
+                    this.stopMonitoring();
+                }
+            }
+
+            toggleMonitoring() {
+                if (this.isMonitoring) {
+                    this.stopMonitoring();
+                } else {
+                    if (this.targets.length === 0) {
+                        this.showToast('Add a target first', 'error');
+                        return;
+                    }
+                    this.startMonitoring();
+                }
+            }
+
+            startMonitoring() {
+                this.isMonitoring = true;
+                this.toggleText.textContent = 'Stop Monitoring';
+                this.toggleIcon.textContent = '■';
+                this.globalToggle.classList.replace('btn-primary', 'btn-danger');
+                
+                // Ping all immediately
+                this.targets.forEach(t => this.pingTarget(t));
+
+                // Set interval
+                this.intervalId = setInterval(() => {
+                    this.targets.forEach(t => this.pingTarget(t));
+                }, this.pingInterval);
+            }
+
+            stopMonitoring() {
+                this.isMonitoring = false;
+                this.toggleText.textContent = 'Start Monitoring';
+                this.toggleIcon.textContent = '▶';
+                this.globalToggle.classList.replace('btn-danger', 'btn-primary');
+                
+                if (this.intervalId) {
+                    clearInterval(this.intervalId);
+                    this.intervalId = null;
+                }
+                
+                // Reset status badges
+                this.targets.forEach(t => {
+                    t.status = 'idle';
+                    this.updateCardStatus(t.id, 'idle');
+                });
+            }
+
+            async pingTarget(target) {
+                // Update UI to pending
+                target.status = 'pending';
+                this.updateCardStatus(target.id, 'pending');
+
+                const start = performance.now();
+                
+                try {
+                    // We use no-cors mode to allow pinging arbitrary servers.
+                    // The response will be opaque, but the time to receive the header 
+                    // is a good approximation of latency.
+                    // We also add a random query param to prevent caching.
+                    const cacheBuster = `?_=${Date.now()}`;
+                    await fetch(target.url + cacheBuster, {
+                        mode: 'no-cors',
+                        cache: 'no-store',
+                        headers: { 'Cache-Control': 'no-cache' }
+                    });
+
+                    const end = performance.now();
+                    const latency = Math.round(end - start);
+                    
+                    target.currentLatency = latency;
+                    target.status = 'success';
+                    
+                    // Update history
+                    target.history.shift();
+                    target.history.push(latency);
+
+                    this.updateCardData(target);
+
+                } catch (error) {
+                    target.status = 'error';
+                    target.currentLatency = null;
+                    target.history.shift();
+                    target.history.push(0); // 0 represents error in chart
+                    
+                    this.updateCardData(target);
+                }
+            }
+
+            // --- UI Rendering ---
+
+            renderDashboard() {
+                if (this.targets.length === 0) {
+                    this.dashboard.innerHTML = `
+                        <div class="empty-state">
+                            <h3>No Targets Added</h3>
+                            <p>Add a URL above or click a preset to start monitoring latency.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // We only want to append new cards, not re-render everything constantly
+                // But for simplicity in this vanilla implementation, we'll rebuild if count changes
+                // or just ensure IDs match. A full diff is overkill here.
+                
+                // Check if we need to clear (simple check)
+                const existingCards = this.dashboard.querySelectorAll('.ping-card');
+                if (existingCards.length !== this.targets.length) {
+                    this.dashboard.innerHTML = '';
+                    this.targets.forEach(target => {
+                        const card = document.createElement('div');
+                        card.className = 'ping-card';
+                        card.id = `card-${target.id}`;
+                        card.innerHTML = `
+                            <div class="card-actions">
+                                <button class="btn-icon" onclick="app.removeTarget('${target.id}')" aria-label="Remove">✕</button>
+                            </div>
+                            <div class="card-header">
+                                <div class="target-info">
+                                    <div class="target-name" title="${target.name}">${target.name}</div>
+                                    <div class="target-url" title="${target.url}">${target.url}</div>
+                                </div>
+                                <div class="status-badge" id="status-${target.id}">IDLE</div>
+                            </div>
+                            <div class="metric-display">
+                                <span class="latency-value" id="latency-${target.id}">--</span>
+                                <span class="latency-unit">ms</span>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="chart-${target.id}"></canvas>
+                            </div>
+                        `;
+                        this.dashboard.appendChild(card);
+                        this.drawChart(target); // Draw empty chart
+                    });
+                }
+            }
+
+            updateCardStatus(id, status) {
+                const badge = document.getElementById(`status-${id}`);
+                if (!badge) return;
+
+                badge.className = 'status-badge';
+                if (status === 'pending') {
+                    badge.classList.add('pending');
+                    badge.textContent = 'PINGING...';
+                } else if (status === 'success') {
+                    badge.classList.add('active');
+                    badge.textContent = 'ONLINE';
+                } else if (status === 'error') {
+                    badge.classList.add('error');
+                    badge.textContent = 'ERROR';
+                } else {
+                    badge.textContent = 'IDLE';
+                }
+            }
+
+            updateCardData(target) {
+                const latencyEl = document.getElementById(`latency-${target.id}`);
+                const badge = document.getElementById(`status-${target.id}`);
+                
+                if (target.status === 'success') {
+                    latencyEl.textContent = target.currentLatency;
+                    latencyEl.style.color = this.getColorForLatency(target.currentLatency);
+                } else {
+                    latencyEl.textContent = 'ERR';
+                    latencyEl.style.color = 'var(--danger)';
+                }
+
+                this.updateCardStatus(target.id, target.status);
+                this.drawChart(target);
+            }
+
+            getColorForLatency(ms) {
+                if (ms < 100) return 'var(--success)';
+                if (ms < 300) return 'var(--warning)';
+                return 'var(--danger)';
+            }
+
+            drawChart(target) {
+                const canvas = document.getElementById(`chart-${target.id}`);
+                if (!canvas) return;
+                
+                const ctx = canvas.getContext('2d');
+                const width = canvas.offsetWidth;
+                const height = canvas.offsetHeight;
+                
+                // Handle HiDPI displays
+                const dpr = window.devicePixelRatio || 1;
+                canvas.width = width * dpr;
+                canvas.height = height * dpr;
+                ctx.scale(dpr, dpr);
+
+                // Clear
+                ctx.clearRect(0, 0, width, height);
+
+                const data = target.history;
+                const maxVal = Math.max(...data.filter(v => v !== null && v !== 0), 200); // Minimum scale 200ms
+                
+                ctx.beginPath();
+                ctx.strokeStyle = this.getColorForLatency(data[data.length - 1]);
+                ctx.lineWidth = 2;
+                ctx.lineJoin = 'round';
+
+                let started = false;
+
+                data.forEach((val, index) => {
+                    if (val === null) return; // Skip initial nulls
+
+                    const x = (index / (data.length - 1)) * width;
+                    
+                    // If val is 0 (error), draw at bottom
+                    const y = val === 0 ? height - 2 : height - ((val / maxVal) * (height - 10)) - 2;
+
+                    if (!started) {
+                        ctx.moveTo(x, y);
+                        started = true;
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                });
+
+                ctx.stroke();
+
+                // Draw gradient fill
+                if (started) {
+                    ctx.lineTo(width, height);
+                    ctx.lineTo(0, height);
+                    ctx.fillStyle = this.hexToRgba(ctx.strokeStyle, 0.1);
+                    ctx.fill();
+                }
+            }
+
+            // --- Utilities ---
+
+            showToast(message, type = 'success') {
+                const toast = document.createElement('div');
+                toast.className = `toast ${type}`;
+                toast.innerHTML = `<span>${message}</span>`;
+                
+                this.toastContainer.appendChild(toast);
+
+                // Remove after 3 seconds
+                setTimeout(() => {
+                    toast.style.animation = 'fadeOut 0.3s forwards';
+                    toast.addEventListener('animationend', () => {
+                        toast.remove();
+                    });
+                }, 3000);
+            }
+
+            hexToRgba(hex, alpha) {
+                // Simple helper to convert CSS var names or hex to rgba for canvas
+                // Since we use CSS vars, we'll just return a hardcoded approximation 
+                // based on the logic used in getColorForLatency for simplicity in this demo,
+                // or we could compute computed styles. 
+                // For robustness in this single file, let's just map the colors manually.
+                if (hex.includes('success')) return `rgba(16, 185, 129, ${alpha})`;
+                if (hex.includes('warning')) return `rgba(245, 158, 11, ${alpha})`;
+                if (hex.includes('danger')) return `rgba(239, 68, 68, ${alpha})`;
+                return `rgba(59, 130, 246, ${alpha})`;
+            }
+        }
+
+        // Initialize App
+        const app = new QuickPingApp();
+
+        // Handle window resize for charts
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                app.targets.forEach(t => app.drawChart(t));
+            }, 200);
+        });
+
+    </script>
+</body>
+</html>
